@@ -68,7 +68,7 @@ def convLayer(x, out_ch, kernel_size, stride, padding=None, sn=True, scope="conv
         w = tf.compat.v1.get_variable("kernel", shape=[kernel_size, kernel_size, out.get_shape()[3], out_ch],
             initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02))
         b = tf.compat.v1.get_variable("b", [out_ch], initializer=tf.constant_initializer(0.0))
-        out = tf.nn.conv2d(out, strides=[1,stride, stride, 1], filter=w, padding='VALID', data_format="NHWC")
+        out = tf.nn.conv2d(out, strides=[1,stride, stride, 1], filter=spectral_normed_weight(w), padding='VALID', data_format="NHWC")
         out = out+b
         return out
 
@@ -77,12 +77,16 @@ def flattenHW(x):
 
 def attention(x,ch, scope='attention', reuse=False):
     with tf.compat.v1.variable_scope(scope, reuse=reuse):
-        f = tf.keras.layers.Conv2D(ch//8, kernel_size=1, strides=1, padding="valid", data_format="channels_last", 
-            kernel_initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02), bias_initializer=tf.constant_initializer(0.0))(x)
-        g = tf.keras.layers.Conv2D(ch//8, kernel_size=1, strides=1, padding="valid", data_format="channels_last",
-            kernel_initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02), bias_initializer=tf.constant_initializer(0.0))(x)
-        h = tf.keras.layers.Conv2D(ch, kernel_size=1, strides=1, padding="valid", data_format="channels_last",
-            kernel_initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02), bias_initializer=tf.constant_initializer(0.0))(x)
+        f = convLayer(x, ch//8, kernel_size=1, stride=1, scope= "___conv_f")
+        g = convLayer(x, ch//8, kernel_size=1, stride=1, scope= "___conv_g")
+        h = convLayer(x, ch, kernel_size=1, stride=1, scope= "___conv_h")
+
+        # f = tf.keras.layers.Conv2D(ch//8, kernel_size=1, strides=1, padding="valid", data_format="channels_last", 
+        #     kernel_initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02), bias_initializer=tf.constant_initializer(0.0))(x)
+        # g = tf.keras.layers.Conv2D(ch//8, kernel_size=1, strides=1, padding="valid", data_format="channels_last",
+        #     kernel_initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02), bias_initializer=tf.constant_initializer(0.0))(x)
+        # h = tf.keras.layers.Conv2D(ch, kernel_size=1, strides=1, padding="valid", data_format="channels_last",
+        #     kernel_initializer=tf.initializers.random_normal(mean=0.0, stddev=0.02), bias_initializer=tf.constant_initializer(0.0))(x)
 
         s = tf.matmul(flattenHW(f), flattenHW(g), transpose_b=True)
 
@@ -138,18 +142,6 @@ def residualBlock(x, channels, scope="resBlock0"):
 
         out = tf.nn.relu(out + residual)
         return out
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
